@@ -106,24 +106,10 @@ class TestCompany:
         [
             ({"name": "User",
               "last_name": "1",
-              "group_sid": all_users_group.sid,
-              "password": "12345"
-              },
-             200, "Creation doesnt work"
-             ),
-            ({"name": "User",
-              "last_name": "1",
               "group_sid": "NOT EVEN SID",
               "password": "123456"
               },
              420, "Wrong sid creation"
-             ),
-            ({"name": "New",
-              "last_name": "User",
-              "company": second_all_users_group,
-              "password": "123456"
-              },
-             400, "Addition to external company"
              )
         ]
     )
@@ -139,34 +125,23 @@ class TestCompany:
             crud.user.remove(self.db, sid=data["sid"])
             if ex is not None: raise ex
 
-    @pytest.mark.parametrize(
-        "user_data,expected_status,comment",
-        [
-            ({"name": "Group 1",
-              "group_sid": all_users_group.sid,
-              "company_sid": company.sid
-              },
-             200, "Creation doesnt work"
-             ),
-            ({"name": "Group 1",
-              "group_sid": None,
-              "company_sid": company.sid
-              },
-             200, "Cant create same group as 'Все пользователи'"
-             ),
-            ({"name": "Group 1",
-              "group_sid": None,
-              "company_sid": second_company.sid
-              },
-             400, "Addition to external company"
-             )
-        ]
-    )
-    def test_add_new_group(self, user_data, expected_status, comment, login_with_admin):
+    def test_add_new_group(self, single_group_data, login_with_admin):
         ex = None
-        response = client.post("/api/v1/company/group", data=user_data)
+        response = client.post("/api/v1/company/group", data=single_group_data)
         try:
-            assert response.status_code == expected_status, comment
+            assert response.status_code == 200, "Creation doesnt work"
+        except Exception as e:
+            ex = e
+        finally:
+            data = json.loads(response.text)
+            crud.group.remove(self.db, sid=data["sid"])
+            if ex is not None: raise ex
+
+    def test_add_new_user_single(self, single_user_data, login_with_admin):
+        ex = None
+        response = client.post("/api/v1/company/user", data=single_user_data)
+        try:
+            assert response.status_code == 200, "Creation doesnt work"
         except Exception as e:
             ex = e
         finally:
@@ -201,3 +176,47 @@ class TestCompany:
             data = json.loads(group_response.text)
             crud.group.remove(self.db, sid=data["sid"])
             if ex is not None: raise ex
+
+    def test_branch(self, single_user_data, single_group_data, login_with_admin):
+        response = client.post("/api/v1/company/group", data=single_group_data)
+        first_group_data = json.loads(response.text)
+        first_group_sid = first_group_data["sid"]
+
+        third_group_data = single_group_data.copy()
+        third_group_data["name"] = "Group 3"
+        response = client.post("/api/v1/company/group", data=single_group_data)
+        third_group_data = json.loads(response.text)
+        third_group_sid = third_group_data["sid"]
+
+        single_user_data["group_sid"] = third_group_sid
+        client.post("/api/v1/company/user", data=single_user_data)
+
+        second_group_data = single_group_data.copy()
+        second_group_data["name"] = "Group 2"
+        second_group_data["group_sid"] = first_group_sid
+        client.post("/api/v1/company/group", data=second_group_data)
+
+        fourth_group_data = single_group_data.copy()
+        fourth_group_data["name"] = "Group 4"
+        fourth_group_data["group_sid"] = third_group_sid
+        response = client.post("/api/v1/company/group", data=fourth_group_data)
+        fourth_group_data = json.loads(response.text)
+        fourth_group_sid = fourth_group_data["sid"]
+
+        user_2_data = single_user_data.copy()
+        user_2_data["last_name"] = "2"
+        user_2_data["group_sid"] = fourth_group_sid
+        client.post("/api/v1/company/group", data=user_2_data)
+        user_3_data = user_2_data.copy()
+        user_3_data["last_name"] = "3"
+        client.post("/api/v1/company/group", data=user_3_data)
+
+        # Создали структуру, теперь сделаем 2 теста на ней
+
+        response = client.get("/api/v1/company/catalogue", params={"name": "Все пользователи"})
+        data = json.loads(response.text)
+        assert len(data) == 9, "неверное число отображаемых объектов"
+
+        response = client.get("/api/v1/company/catalogue", params={"name": "Group 3"})
+        data = json.loads(response.text)
+        assert len(data) == 5, "неверное число отображаемых объектов"
