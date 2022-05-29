@@ -46,12 +46,12 @@ async def get_current_user(
 async def get_current_active_user(
         current_user: models.User = Depends(get_current_user),
 ):
-    if not crud.user.is_active(current_user):
+    if not current_user.is_active:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inactive user")
     return current_user
 
 
 async def get_current_admin(
-        current_user: models.User = Depends(get_current_active_user)) -> list:
+        current_user: models.User = Depends(get_current_active_user)):
     check_permission(current_user)
     return current_user

@@ -101,7 +101,7 @@ def add_group_to_company(
     return crud.group.create(db, obj_in=group_in)
 
 
-@router.get("/group", response_model=schemas.Group)
+@router.get("/group", response_model=List[schemas.Group])
 def get_groups_by_name(
         name: str,
         db: Session = Depends(deps.get_db),

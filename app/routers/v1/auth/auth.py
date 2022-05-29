@@ -35,7 +35,7 @@ async def login(
     if not user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Incorrect email or password")
-    elif not crud.user.is_active(user):
+    elif not user.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Inactive user")
 

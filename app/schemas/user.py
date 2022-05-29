@@ -19,8 +19,8 @@ class UserBase(BaseModel):
 # Properties to receive via API on creation
 class UserCreate(UserBase):
     password: str
-    company_sid = UUID
-    group_sid = UUID
+    company_sid: UUID
+    group_sid: UUID
     is_admin: bool = False
 
 
